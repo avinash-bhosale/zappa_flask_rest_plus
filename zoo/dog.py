@@ -8,11 +8,11 @@ api = Namespace('dogs', description='Dogs related operations')
 
 dog = api.model('Dog', {
     'id': fields.String(required=True),
-    'name': fields.String(required=True, min_length=5, max_length=50),
+    'dog_name': fields.String(required=True, min_length=5, max_length=50),
     'description': fields.String(required=True, min_length=10, max_length=200)
 })
 new_dog = api.model('NewDog', {
-    'name': fields.String(required=True, min_length=5, max_length=50),
+    'dog_name': fields.String(required=True, min_length=5, max_length=50),
     'description': fields.String(required=True, min_length=10, max_length=200)
 })
 dog_response = api.model('DogResponse', {
@@ -28,7 +28,7 @@ dog_list = api.model('DogResponseList', {
     'message': fields.String(default='Dog List returned')
 })
 DOGS = [
-    {'id': 'medor', 'name': 'Medor', "description": "this is a dog"},
+    {'id': 'medor', 'dog_name': 'Medor', "description": "this is a dog"},
 ]
 
 
@@ -57,7 +57,7 @@ class DogList(Resource):
         dog_table.put_item(
             Item={
                 'id': dog_id,
-                'name': payload['name'],
+                'dog_name': payload['dog_name'],
                 'description': payload['description'],
             }
         )
@@ -81,4 +81,29 @@ class Dog(Resource):
         dog_obj = dog_table.get_item(Key={'id': id})
         if dog_obj.get('Item'):
             return {'data': dog_obj['Item'], 'status': "Success", 'statusCode': 200}
+        api.abort(404, "Dog Not found", status="False", statusCode=404)
+
+    @api.doc('update_dog')
+    @api.expect(new_dog, validate=True)
+    @api.response(200, 'Dog Information Returned', model=dog_response)
+    @api.marshal_with(dog_response, code=200)
+    def post(self, id):
+        """ Update Dog details"""
+        dog_obj = dog_table.get_item(Key={'id': id})
+        if dog_obj.get('Item'):
+            payload = api.payload
+            response = dog_table.update_item(
+                Key={
+                    'id': id,
+                },
+                UpdateExpression="set dog_name = :n, description= :d",
+                ExpressionAttributeValues={
+                    ':n': payload['dog_name'],
+                    ':d': payload['description']
+                },
+                ReturnValues="UPDATED_NEW"
+            )
+            dog_obj = dog_table.get_item(Key={'id': id})
+            return {'data': dog_obj['Item'], 'status': "Success", 'statusCode': 200}
+
         api.abort(404, "Dog Not found", status="False", statusCode=404)
